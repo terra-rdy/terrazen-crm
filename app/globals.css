@@ -1,0 +1,81 @@
+/* ============================================================
+   TAMBAHKAN ini ke app/globals.css yang sudah ada
+   (paste di bagian paling bawah file globals.css kamu)
+   ============================================================ */
+
+/* SalesHub Theme Variables */
+:root {
+  --sh-primary:       #1F4E79;
+  --sh-primary-hover: #184063;
+  --sh-secondary:     #4F6D8C;
+  --sh-accent:        #C9A66B;
+  --sh-bg:            #F4F7FA;
+  --sh-text:          #1E293B;
+  --sh-text-muted:    #64748B;
+  --sh-border:        #E2E8F0;
+}
+
+body {
+  background: var(--sh-bg) !important;
+}
+
+/* Ant Design overrides */
+.ant-layout { background: var(--sh-bg) !important; }
+.ant-layout-sider { background: var(--sh-primary) !important; }
+.ant-menu.ant-menu-dark { background: transparent !important; }
+
+.ant-menu-dark .ant-menu-item-selected {
+  background-color: #C9A66B !important;
+  border-radius: 8px;
+}
+.ant-menu-dark .ant-menu-item:hover {
+  background-color: rgba(255,255,255,0.1) !important;
+  border-radius: 8px;
+}
+
+.ant-layout-header {
+  background: #FFFFFF !important;
+  border-bottom: 1px solid var(--sh-border);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+
+.ant-card {
+  border-radius: 12px !important;
+  border: 1px solid var(--sh-border) !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04) !important;
+}
+.ant-card:hover {
+  box-shadow: 0 4px 12px rgba(31,78,121,0.08) !important;
+  transition: box-shadow 0.2s ease;
+}
+
+.ant-btn-primary {
+  background: var(--sh-primary) !important;
+  border-color: var(--sh-primary) !important;
+}
+.ant-btn-primary:hover {
+  background: var(--sh-primary-hover) !important;
+  border-color: var(--sh-primary-hover) !important;
+}
+
+/* Page layout helpers */
+.sh-page {
+  padding: 24px;
+  min-height: calc(100vh - 64px);
+  background: var(--sh-bg);
+}
+.sh-page-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--sh-text);
+  margin-bottom: 4px;
+}
+.sh-page-subtitle {
+  font-size: 14px;
+  color: var(--sh-text-muted);
+  margin-bottom: 24px;
+}
+
+@media (max-width: 768px) {
+  .sh-page { padding: 16px; }
+}
