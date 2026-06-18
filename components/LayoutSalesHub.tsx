@@ -21,6 +21,8 @@ import {
   UsergroupAddOutlined,
   HistoryOutlined,
   ThunderboltOutlined,
+  InboxOutlined,
+  BankOutlined,
 } from '@ant-design/icons';
 import { useRouter, usePathname } from 'next/navigation';
 import { auth, db } from '@/lib/firebase';
@@ -53,9 +55,9 @@ const adminMenuItems = [
 ];
 
 const salesMenuItems = [
-  { key: '/leads',   icon: <FileTextOutlined />, label: 'Lead Saya' },
-  { key: '/lead',    icon: <DollarOutlined />,   label: 'Tambah Lead' },
-  { key: '/profile', icon: <UserOutlined />,     label: 'Profil Saya' },
+  { key: '/inbox',    icon: <InboxOutlined />,      label: 'Leads Masuk' },
+  { key: '/leads',    icon: <FileTextOutlined />,   label: 'Lead Saya' },
+  { key: '/profile',  icon: <UserOutlined />,       label: 'Profil Saya' },
 ];
 
 const roleBadge: Record<string, string> = {

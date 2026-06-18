@@ -1,6 +1,44 @@
+// Firebase Messaging Service Worker
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js');
 
+// PWA Cache
+const CACHE_NAME = 'terrazen-v1';
+const urlsToCache = ['/', '/leads', '/inbox', '/dashboard'];
+
+self.addEventListener('install', event => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache))
+  );
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', event => {
+  event.waitUntil(
+    caches.keys().then(keys =>
+      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
+    )
+  );
+  self.clients.claim();
+});
+
+self.addEventListener('fetch', event => {
+  if (event.request.method !== 'GET') return;
+  if (!event.request.url.startsWith(self.location.origin)) return;
+  event.respondWith(
+    fetch(event.request)
+      .then(response => {
+        if (response.ok) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(event.request, clone));
+        }
+        return response;
+      })
+      .catch(() => caches.match(event.request))
+  );
+});
+
+// Firebase config
 firebase.initializeApp({
   apiKey: "AIzaSyCL22g_Oa85dCsSY9P1Ie1vlHQtoSRHnxk",
   authDomain: "terrazen-1e8be.firebaseapp.com",
@@ -12,25 +50,31 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
-messaging.onBackgroundMessage((payload) => {
-  console.log('Background message received:', payload);
-  const title = payload.notification?.title ?? 'Notifikasi Baru';
-  const body  = payload.notification?.body  ?? '';
-  self.registration.showNotification(title, {
-    body,
+// Handle background notification
+messaging.onBackgroundMessage(payload => {
+  const { title, body } = payload.notification ?? {};
+  self.registration.showNotification(title ?? 'Terrazen CRM', {
+    body: body ?? '',
     icon: '/icon-192.png',
+    badge: '/icon-192.png',
+    vibrate: [200, 100, 200],
+    data: { url: '/inbox' },
   });
 });
 
-// Handler untuk test dari DevTools
-self.addEventListener('push', (event) => {
-  console.log('Push event received:', event);
-  const title = 'Test Notifikasi';
-  const body  = event.data?.text() ?? 'Push test berhasil!';
+// Notification click
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  const url = event.notification.data?.url ?? '/inbox';
   event.waitUntil(
-    self.registration.showNotification(title, {
-      body,
-      icon: '/icon-192.png',
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clientList => {
+      for (const client of clientList) {
+        if (client.url.includes(self.location.origin) && 'focus' in client) {
+          client.navigate(url);
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) return clients.openWindow(url);
     })
   );
 });
