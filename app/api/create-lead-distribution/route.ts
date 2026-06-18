@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebaseAdmin';
 import { FieldValue } from 'firebase-admin/firestore';
+import type { DocumentReference } from 'firebase-admin/firestore';
 
 function sensorHP(hp: string): string {
   if (!hp || hp.length < 6) return hp;
@@ -30,7 +31,7 @@ export async function POST(req: NextRequest) {
       createdAt: FieldValue.serverTimestamp(),
     };
 
-    let leadRef;
+    let leadRef: DocumentReference;
 
     if (distributionType === 'manual') {
       // Langsung assign, tidak perlu proses distribusi
