@@ -1,5 +1,4 @@
 import { initializeApp, getApps, cert } from "firebase-admin/app";
-import { getAuth } from "firebase-admin/auth";
 import { getFirestore } from "firebase-admin/firestore";
 
 if (!getApps().length) {
@@ -12,5 +11,12 @@ if (!getApps().length) {
   });
 }
 
-export const adminAuth = getAuth();
 export const adminDb = getFirestore();
+
+// adminAuth di-lazy-load supaya modul firebase-admin/auth (yang membawa
+// dependency jwks-rsa/jose bermasalah di Vercel) hanya ter-load saat
+// benar-benar dipakai, bukan di setiap import firebaseAdmin.ts.
+export async function getAdminAuth() {
+  const { getAuth } = await import("firebase-admin/auth");
+  return getAuth();
+}

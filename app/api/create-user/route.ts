@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
+import { getAdminAuth, adminDb } from "@/lib/firebaseAdmin";
 
 export async function POST(req: NextRequest) {
   try {
+    const adminAuth = await getAdminAuth();
+
     // Verifikasi token Firebase
     const authHeader = req.headers.get("Authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
     const idToken = authHeader.split("Bearer ")[1];
     const decodedToken = await adminAuth.verifyIdToken(idToken);
 
@@ -29,7 +30,6 @@ export async function POST(req: NextRequest) {
     if (!nama || !email || !hp || !projectId || !password) {
       return NextResponse.json({ error: "Semua field wajib diisi" }, { status: 400 });
     }
-
     if (password.length < 6) {
       return NextResponse.json({ error: "Password minimal 6 karakter" }, { status: 400 });
     }
@@ -60,7 +60,6 @@ export async function POST(req: NextRequest) {
       uid,
       message: `Sales "${nama}" berhasil dibuat`,
     });
-
   } catch (error: any) {
     console.error("CREATE USER ERROR:", error);
     const pesan =
