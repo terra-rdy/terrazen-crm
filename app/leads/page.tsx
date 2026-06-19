@@ -524,11 +524,42 @@ export default function LeadsPage() {
         message.success('Lead berhasil diupdate');
       } else {
         const assignedTo = distribusiType === 'assigned' ? (currentRole === 'admin' ? (values.assignedTo ?? currentUid) : currentUid) : null;
-        await addDoc(collection(db, 'leads'), { ...payload, assignedTo, createdAt: serverTimestamp(), firstOpenedAt: null, waClickedAt: null, followUpHistory: [] });
+        const docRef = await addDoc(collection(db, 'leads'), { ...payload, assignedTo, createdAt: serverTimestamp(), firstOpenedAt: null, waClickedAt: null, followUpHistory: [] });
         message.success(distribusiType === 'rolling' ? 'Lead masuk antrian rolling' : distribusiType === 'rebutan' ? 'Lead masuk sistem rebutan' : 'Lead berhasil ditambahkan');
+
         try {
-          const idToken = await auth.currentUser?.getIdToken();
-          await fetch('/api/send-notification', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` }, body: JSON.stringify({ title: distribusiType === 'rebutan' ? '⚡ Lead Rebutan Masuk!' : '🏠 Lead Baru Masuk!', body: `${values.nama} - ${values.project ?? ''}`, targetRole: 'sales' }) });
+          if (distribusiType === 'rolling') {
+            const queue: string[] = distribusiPayload.rollingQueue ?? [];
+            const firstUid = queue[0];
+            if (firstUid) {
+              await fetch('/api/send-notification', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  title: '🏠 Lead Baru Untuk Anda!',
+                  body: `${values.nama} - ${values.project ?? ''}`,
+                  targetUid: firstUid,
+                  data: { type: 'new_lead_distribution', leadId: docRef.id },
+                }),
+              });
+            }
+          } else if (distribusiType === 'rebutan') {
+            const group: string[] = distribusiConfig?.rebutanGroup ?? [];
+            await Promise.allSettled(
+              group.map(uid =>
+                fetch('/api/send-notification', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    title: '⚡ Lead Rebutan Masuk!',
+                    body: `${values.nama} - ${values.project ?? ''}`,
+                    targetUid: uid,
+                    data: { type: 'new_lead_distribution', leadId: docRef.id },
+                  }),
+                })
+              )
+            );
+          }
         } catch (notifErr) { console.error('Notifikasi gagal:', notifErr); }
       }
 
