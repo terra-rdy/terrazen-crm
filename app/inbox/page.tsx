@@ -311,6 +311,7 @@ export default function InboxPage() {
         try {
           const leadRef = doc(db, 'leads', lead.id);
           await runTransaction(db, async (transaction) => {
+            // ===== SEMUA BACA (READ) DULU =====
             const leadDoc = await transaction.get(leadRef);
             if (!leadDoc.exists()) throw new Error('Lead tidak ditemukan');
             const data = leadDoc.data();
@@ -327,6 +328,18 @@ export default function InboxPage() {
               if (expiredAt < new Date()) throw new Error('Waktu giliran sudah habis');
             }
 
+            // Baca config SEBELUM ada write apapun
+            let configRef: any = null;
+            let configData: any = null;
+            if (!isDatabank && data.distributionType === 'rolling') {
+              configRef = doc(db, 'distribution_settings', 'config');
+              const configDoc = await transaction.get(configRef);
+              if (configDoc.exists()) {
+                configData = configDoc.data();
+              }
+            }
+
+            // ===== SETELAH ITU BARU SEMUA TULIS (WRITE) =====
             transaction.update(leadRef, {
               distributionStatus: 'taken',
               assignedTo: currentUser.uid,
@@ -334,15 +347,10 @@ export default function InboxPage() {
               takenAt: Timestamp.now(),
             });
 
-            if (!isDatabank && data.distributionType === 'rolling') {
-              const configRef = doc(db, 'distribution_settings', 'config');
-              const configDoc = await transaction.get(configRef);
-              if (configDoc.exists()) {
-                const configData = configDoc.data();
-                const rollingOrder: string[] = configData.rollingOrder ?? [];
-                const idx = rollingOrder.indexOf(currentUser.uid);
-                if (idx !== -1) transaction.update(configRef, { lastWinnerIndex: idx });
-              }
+            if (configRef && configData) {
+              const rollingOrder: string[] = configData.rollingOrder ?? [];
+              const idx = rollingOrder.indexOf(currentUser.uid);
+              if (idx !== -1) transaction.update(configRef, { lastWinnerIndex: idx });
             }
           });
 
