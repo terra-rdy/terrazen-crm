@@ -3,7 +3,7 @@
 import { usePathname } from 'next/navigation';
 import LayoutSalesHub from '@/components/LayoutSalesHub';
 
-const NO_LAYOUT_PATHS = ['/login', '/forbidden'];
+const NO_LAYOUT_PATHS = ['/login', '/forbidden', '/lead-respond'];
 
 export default function ConditionalLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
