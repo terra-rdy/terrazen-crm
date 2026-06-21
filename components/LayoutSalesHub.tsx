@@ -226,7 +226,6 @@ export default function LayoutSalesHub({ children }: LayoutSalesHubProps) {
         }}>
           <Space>
             <Button type="text" icon={<MenuOutlined />} onClick={() => setCollapsed(!collapsed)} style={{ color: '#1F4E79' }} className="sh-desktop-toggle" />
-            <Button type="text" icon={<MenuOutlined />} onClick={() => setDrawer(true)} style={{ color: '#1F4E79' }} className="sh-mobile-toggle" />
           </Space>
 
           <Space size={16} align="center">
@@ -252,29 +251,86 @@ export default function LayoutSalesHub({ children }: LayoutSalesHubProps) {
           </Space>
         </Header>
 
-        <Content>{children}</Content>
+        <Content style={{ paddingBottom: 0 }} className="sh-content">{children}</Content>
       </Layout>
 
-      <Drawer
-        open={drawerOpen}
-        onClose={() => setDrawer(false)}
-        placement="left"
-        size="default"
-        styles={{ body: { padding: 0, background: '#1F4E79' }, header: { display: 'none' } }}
-      >
-        <SideMenu />
-      </Drawer>
+      {/* Bottom navigation bar — HANYA muncul di HP (layar < 768px) */}
+      <nav className="sh-bottom-nav">
+        {menuItems.map((item) => {
+          const active = pathname === item.key;
+          return (
+            <button
+              key={item.key}
+              onClick={() => router.push(item.key)}
+              className={`sh-bottom-item${active ? ' sh-bottom-item-active' : ''}`}
+            >
+              <span className="sh-bottom-icon">{item.icon}</span>
+              <span className="sh-bottom-label">{item.label}</span>
+            </button>
+          );
+        })}
+      </nav>
 
       <style jsx global>{`
+        /* ===== DESKTOP (>= 768px) ===== */
         @media (min-width: 768px) {
-          .sh-mobile-toggle { display: none !important; }
           .sh-user-info { display: flex !important; }
+          .sh-bottom-nav { display: none !important; }
         }
+
+        /* ===== HP (< 768px) ===== */
         @media (max-width: 767px) {
           .sh-desktop-toggle { display: none !important; }
           .sh-sider-desktop { display: none !important; }
           .sh-main-layout { margin-left: 0 !important; }
           .sh-user-info { display: none !important; }
+
+          /* Beri ruang di bawah konten supaya tidak ketutup bottom bar */
+          .sh-content { padding-bottom: 72px !important; }
+
+          .sh-bottom-nav {
+            display: flex;
+            position: fixed;
+            left: 0; right: 0; bottom: 0;
+            height: 64px;
+            background: #1F4E79;
+            border-top: 1px solid rgba(255, 255, 255, 0.12);
+            z-index: 1000;
+            box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.15);
+            /* aman dari area gestur/notch HP */
+            padding-bottom: env(safe-area-inset-bottom, 0px);
+          }
+
+          .sh-bottom-item {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 3px;
+            background: transparent;
+            border: none;
+            outline: none;
+            cursor: pointer;
+            padding: 8px 4px;
+            color: rgba(255, 255, 255, 0.6);
+            transition: color 0.15s;
+          }
+
+          .sh-bottom-item-active {
+            color: #C9A66B;
+          }
+
+          .sh-bottom-icon {
+            font-size: 20px;
+            line-height: 1;
+          }
+
+          .sh-bottom-label {
+            font-size: 11px;
+            line-height: 1;
+            white-space: nowrap;
+          }
         }
       `}</style>
     </Layout>
