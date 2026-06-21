@@ -46,11 +46,7 @@ interface LayoutSalesHubProps {
 const adminMenuItems = [
   { key: '/dashboard',     icon: <DashboardOutlined />,    label: 'Dashboard' },
   { key: '/leads',         icon: <TeamOutlined />,          label: 'Leads' },
-  { key: '/projects',      icon: <AppstoreOutlined />,      label: 'Projects' },
-  { key: '/sales',         icon: <UsergroupAddOutlined />,  label: 'Sales' },
   { key: '/report',        icon: <BarChartOutlined />,      label: 'Reports' },
-  { key: '/response-time', icon: <ThunderboltOutlined />,   label: 'Response Time' },
-  { key: '/activity-log',  icon: <HistoryOutlined />,       label: 'Activity Log' },
   { key: '/settings',      icon: <SettingOutlined />,       label: 'Settings' },
 ];
 

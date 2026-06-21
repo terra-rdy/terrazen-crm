@@ -12,6 +12,7 @@ import {
   PhoneOutlined, InfoCircleOutlined, PlusOutlined,
   EditOutlined, DeleteOutlined, TagsOutlined, UnorderedListOutlined,
   SwapOutlined, TeamOutlined, ArrowUpOutlined, ArrowDownOutlined,
+  UsergroupAddOutlined,
 } from '@ant-design/icons';
 import {
   doc, getDoc, setDoc, collection, getDocs,
@@ -20,6 +21,7 @@ import {
 import { db, auth } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
 import type { ColumnsType } from 'antd/es/table';
+import KelolaSalesContent from '@/components/KelolaSalesContent';
 
 const { Text, Title } = Typography;
 const { Option } = Select;
@@ -171,7 +173,6 @@ export default function SettingsPage() {
 
   const getSalesName = (uid: string) => salesList.find(s => s.id === uid)?.nama ?? uid;
 
-  // Tambah sales ke rolling order
   const addToRolling = (uid: string) => {
     if (rollingOrder.includes(uid)) {
       message.warning('Sales sudah ada di urutan rolling');
@@ -180,13 +181,11 @@ export default function SettingsPage() {
     setRollingOrder(prev => [...prev, uid]);
   };
 
-  // Hapus dari rolling order
   const removeFromRolling = (uid: string) => {
     setRollingOrder(prev => prev.filter(id => id !== uid));
     setRollingSkip(prev => prev.filter(id => id !== uid));
   };
 
-  // Naikan urutan
   const moveUp = (index: number) => {
     if (index === 0) return;
     const newOrder = [...rollingOrder];
@@ -194,7 +193,6 @@ export default function SettingsPage() {
     setRollingOrder(newOrder);
   };
 
-  // Turunkan urutan
   const moveDown = (index: number) => {
     if (index === rollingOrder.length - 1) return;
     const newOrder = [...rollingOrder];
@@ -202,14 +200,12 @@ export default function SettingsPage() {
     setRollingOrder(newOrder);
   };
 
-  // Toggle skip
   const toggleSkip = (uid: string) => {
     setRollingSkip(prev =>
       prev.includes(uid) ? prev.filter(id => id !== uid) : [...prev, uid]
     );
   };
 
-  // Simpan distribusi config
   const saveDistribusi = async () => {
     try {
       setSavingDist(true);
@@ -364,12 +360,16 @@ export default function SettingsPage() {
     },
   ];
 
-  // Sales yang belum masuk rolling order (untuk dropdown tambah)
   const salesNotInRolling = salesList.filter(s => !rollingOrder.includes(s.id));
 
   if (authorized === false) return null;
 
   const tabItems = [
+    {
+      key: 'sales',
+      label: <Space><UsergroupAddOutlined />Kelola Sales</Space>,
+      children: <KelolaSalesContent />,
+    },
     {
       key: 'general',
       label: <Space><SettingOutlined />Umum</Space>,
@@ -421,7 +421,6 @@ export default function SettingsPage() {
                   style={{ marginBottom: 16 }}
                 />
 
-                {/* Tap nama sales untuk tambah ke urutan rolling */}
                 <div style={{ marginBottom: 16 }}>
                   <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 8 }}>
                     Tap nama sales untuk menambah ke urutan rolling:
@@ -456,7 +455,6 @@ export default function SettingsPage() {
                   </div>
                 </div>
 
-                {/* Daftar urutan rolling */}
                 {rollingOrder.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: '24px 0', color: '#94A3B8' }}>
                     Belum ada sales dalam urutan rolling. Tambah sales di atas.
@@ -480,7 +478,6 @@ export default function SettingsPage() {
                             opacity: isSkip ? 0.7 : 1,
                           }}
                         >
-                          {/* Nomor urutan */}
                           <div style={{
                             width: 28, height: 28, borderRadius: '50%',
                             background: isSkip ? '#FCA5A5' : '#1F4E79',
@@ -491,7 +488,6 @@ export default function SettingsPage() {
                             {index + 1}
                           </div>
 
-                          {/* Nama sales */}
                           <div style={{ flex: 1 }}>
                             <Text strong style={{ color: isSkip ? '#EF4444' : '#1E293B' }}>{nama}</Text>
                             {isSkip && <Tag color="error" style={{ marginLeft: 8 }}>Di-skip</Tag>}
@@ -500,7 +496,6 @@ export default function SettingsPage() {
                             )}
                           </div>
 
-                          {/* Tombol aksi */}
                           <Space size={4}>
                             <Button
                               type="text" size="small" icon={<ArrowUpOutlined />}
@@ -595,7 +590,6 @@ export default function SettingsPage() {
                 </div>
               </Card>
 
-              {/* Tombol simpan */}
               <Button
                 type="primary"
                 icon={<SaveOutlined />}
