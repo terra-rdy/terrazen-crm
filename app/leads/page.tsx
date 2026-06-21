@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import {
   Card, Table, Tag, Button, Input, Select, Space, Modal,
   Form, Row, Col, Typography, Tooltip, Popconfirm, message,
-  Drawer, Descriptions, Avatar, DatePicker, Statistic, Alert,
+  Drawer, Descriptions, Avatar, DatePicker, Alert,
   Radio, Timeline, Divider,
 } from 'antd';
 import {
@@ -14,6 +14,7 @@ import {
   TeamOutlined, ClockCircleOutlined, WarningOutlined,
   WhatsAppOutlined, SwapOutlined, ThunderboltOutlined,
   MessageOutlined, CalendarOutlined, CheckCircleOutlined,
+  InboxOutlined,
 } from '@ant-design/icons';
 import {
   collection, getDocs, addDoc, updateDoc, deleteDoc,
@@ -145,7 +146,7 @@ const DIST_TYPE_LABEL: Record<string, { label: string; color: string }> = {
   assigned: { label: 'Assigned', color: '#F59E0B' },
 };
 
-type FilterType = 'all' | 'aktif' | 'today' | 'overdue';
+type FilterType = 'all' | 'aktif' | 'today' | 'overdue' | 'archived';
 
 export default function LeadsPage() {
   const [leads, setLeads]               = useState<Lead[]>([]);
@@ -254,6 +255,8 @@ export default function LeadsPage() {
         l.nextFollowUp && l.nextFollowUp < today &&
         l.status?.toLowerCase() !== 'drop'
       );
+    } else if (activeFilter === 'archived') {
+      data = data.filter(l => l.status?.toLowerCase() === 'drop');
     }
 
     // Filter by search
@@ -302,12 +305,14 @@ export default function LeadsPage() {
     l.nextFollowUp && l.nextFollowUp < today &&
     l.status?.toLowerCase() !== 'drop'
   ).length;
+  const archived    = leads.filter(l => l.status?.toLowerCase() === 'drop').length;
 
   const statCards = [
-    { key: 'all',     label: 'Total Leads',  value: totalLeads, color: '#1F4E79', icon: <TeamOutlined /> },
-    { key: 'aktif',   label: 'Leads Aktif',  value: leadsAktif, color: '#8B5CF6', icon: <CheckCircleOutlined /> },
-    { key: 'today',   label: 'Today Task',   value: todayTask,  color: '#F59E0B', icon: <ClockCircleOutlined /> },
-    { key: 'overdue', label: 'Overdue',      value: overdue,    color: '#EF4444', icon: <WarningOutlined /> },
+    { key: 'all',      label: 'Total Leads',  value: totalLeads, color: '#1F4E79', icon: <TeamOutlined /> },
+    { key: 'aktif',    label: 'Leads Aktif',  value: leadsAktif, color: '#8B5CF6', icon: <CheckCircleOutlined /> },
+    { key: 'today',    label: 'Today Task',   value: todayTask,  color: '#F59E0B', icon: <ClockCircleOutlined /> },
+    { key: 'overdue',  label: 'Overdue',      value: overdue,    color: '#EF4444', icon: <WarningOutlined /> },
+    { key: 'archived', label: 'Archived',     value: archived,   color: '#64748B', icon: <InboxOutlined /> },
   ];
 
   const checkDuplicate = (hp: string, excludeId?: string): Lead | null => {
@@ -673,34 +678,42 @@ export default function LeadsPage() {
         </Col>
       </Row>
 
-      {/* ── 4 STAT CARDS (clickable) ── */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+      {/* ── STAT CARDS (clickable, toggle) — ringkas, 1 baris ── */}
+      <Row gutter={[8, 8]} wrap={false} style={{ marginBottom: 16, overflowX: 'auto' }}>
         {statCards.map(item => (
-          <Col key={item.key} xs={12} sm={6}>
+          <Col key={item.key} flex="1 1 0" style={{ minWidth: 0 }}>
             <Card
-              onClick={() => setActiveFilter(item.key as FilterType)}
+              onClick={() => setActiveFilter(activeFilter === item.key ? 'all' : item.key as FilterType)}
               style={{
-                borderLeft: `4px solid ${item.color}`,
+                borderTop: `3px solid ${item.color}`,
                 cursor: 'pointer',
                 background: activeFilter === item.key ? `${item.color}12` : '#fff',
                 boxShadow: activeFilter === item.key ? `0 0 0 2px ${item.color}40` : '0 1px 3px rgba(0,0,0,0.06)',
                 transition: 'all 0.2s',
                 transform: activeFilter === item.key ? 'translateY(-2px)' : 'none',
               }}
-              styles={{ body: { padding: '14px 16px' } }}
+              styles={{ body: { padding: '10px 8px', textAlign: 'center' } }}
             >
-              <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-                <div>
-                  <Text style={{ fontSize: 12, color: activeFilter === item.key ? item.color : '#94A3B8', fontWeight: activeFilter === item.key ? 600 : 400 }}>{item.label}</Text>
-                  <Statistic
-                    value={item.value}
-                    styles={{ content: { fontWeight: 700, fontSize: 24, color: activeFilter === item.key ? item.color : '#1E293B' } }}
-                  />
-                </div>
-                <div style={{ width: 40, height: 40, borderRadius: 10, background: activeFilter === item.key ? `${item.color}30` : `${item.color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, color: item.color }}>
-                  {item.icon}
-                </div>
-              </Space>
+              <div style={{
+                fontSize: 10,
+                lineHeight: 1.2,
+                color: activeFilter === item.key ? item.color : '#94A3B8',
+                fontWeight: activeFilter === item.key ? 600 : 400,
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+              }}>
+                {item.label}
+              </div>
+              <div style={{
+                fontWeight: 700,
+                fontSize: 24,
+                lineHeight: 1.2,
+                marginTop: 2,
+                color: activeFilter === item.key ? item.color : '#1E293B',
+              }}>
+                {item.value}
+              </div>
             </Card>
           </Col>
         ))}
