@@ -696,12 +696,14 @@ export default function LeadsPage() {
             >
               <div style={{
                 fontSize: 10,
-                lineHeight: 1.2,
+                lineHeight: 1.15,
                 color: activeFilter === item.key ? item.color : '#94A3B8',
                 fontWeight: activeFilter === item.key ? 600 : 400,
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
+                minHeight: 24,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                textAlign: 'center',
               }}>
                 {item.label}
               </div>
@@ -966,15 +968,6 @@ export default function LeadsPage() {
           </Space>
         }
         open={drawerOpen} onClose={() => setDrawer(false)} size="default"
-        extra={
-          <Space>
-            {selectedLead?.hp && (
-              <Button icon={<WhatsAppOutlined />} onClick={() => handleWAClick(selectedLead)} style={{ background: '#25D366', borderColor: '#25D366', color: '#fff' }}>Chat WA</Button>
-            )}
-            <Button icon={<MessageOutlined />} onClick={() => { setDrawer(false); openFollowUp(selectedLead!); }} style={{ background: '#10B981', borderColor: '#10B981', color: '#fff' }}>Follow Up</Button>
-            <Button type="primary" icon={<EditOutlined />} onClick={() => { setDrawer(false); openEdit(selectedLead!); }} style={{ background: '#1F4E79' }}>Edit</Button>
-          </Space>
-        }
       >
         {selectedLead && (
           <>
@@ -1002,6 +995,34 @@ export default function LeadsPage() {
               <Descriptions.Item label="WA Diklik">{selectedLead.waClickedAt ? formatTs(selectedLead.waClickedAt) : <Tag color="warning">Belum chat WA</Tag>}</Descriptions.Item>
               <Descriptions.Item label="WA Response Time">{selectedLead.waClickedAt ? diffMenit(selectedLead.createdAt, selectedLead.waClickedAt) : '—'}</Descriptions.Item>
             </Descriptions>
+
+            {/* Tombol aksi — dipindah ke bawah detail */}
+            <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
+              {selectedLead.hp && (
+                <Button
+                  icon={<WhatsAppOutlined />}
+                  onClick={() => handleWAClick(selectedLead)}
+                  style={{ flex: 1, minWidth: 100, background: '#25D366', borderColor: '#25D366', color: '#fff' }}
+                >
+                  Chat WA
+                </Button>
+              )}
+              <Button
+                icon={<MessageOutlined />}
+                onClick={() => { setDrawer(false); openFollowUp(selectedLead!); }}
+                style={{ flex: 1, minWidth: 100, background: '#10B981', borderColor: '#10B981', color: '#fff' }}
+              >
+                Follow Up
+              </Button>
+              <Button
+                type="primary"
+                icon={<EditOutlined />}
+                onClick={() => { setDrawer(false); openEdit(selectedLead!); }}
+                style={{ flex: 1, minWidth: 100, background: '#1F4E79' }}
+              >
+                Edit
+              </Button>
+            </div>
 
             {(selectedLead.followUpHistory?.length ?? 0) > 0 && (
               <>
