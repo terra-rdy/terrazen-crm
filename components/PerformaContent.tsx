@@ -20,6 +20,8 @@ import { db } from '@/lib/firebase';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 import dayjs, { Dayjs } from 'dayjs';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const { Text } = Typography;
 const { Option } = Select;
@@ -211,6 +213,228 @@ export default function PerformaContent() {
     }));
   };
 
+  // ─── Helper: gambar PIE chart ke canvas, return dataURL ──────────────
+  const buatPieChart = (
+    data: { name: string; value: number }[],
+    judul: string,
+    palet: string[],
+  ): string => {
+    const W = 520, H = 320;
+    const canvas = document.createElement('canvas');
+    canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext('2d')!;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, W, H);
+
+    // Judul
+    ctx.fillStyle = '#1E293B';
+    ctx.font = 'bold 18px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText(judul, 16, 28);
+
+    const total = data.reduce((a, d) => a + d.value, 0) || 1;
+    const cx = 150, cy = 180, r = 100;
+    let start = -Math.PI / 2;
+
+    data.forEach((d, i) => {
+      const slice = (d.value / total) * Math.PI * 2;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.arc(cx, cy, r, start, start + slice);
+      ctx.closePath();
+      ctx.fillStyle = palet[i % palet.length];
+      ctx.fill();
+      start += slice;
+    });
+
+    // Legenda
+    let ly = 70;
+    ctx.font = '13px Arial';
+    data.forEach((d, i) => {
+      ctx.fillStyle = palet[i % palet.length];
+      ctx.fillRect(300, ly - 10, 14, 14);
+      ctx.fillStyle = '#334155';
+      const pct = ((d.value / total) * 100).toFixed(1);
+      ctx.fillText(`${d.name}: ${d.value} (${pct}%)`, 320, ly + 2);
+      ly += 24;
+    });
+
+    return canvas.toDataURL('image/png');
+  };
+
+  // ─── Helper: gambar BAR chart ke canvas, return dataURL ──────────────
+  const buatBarChart = (
+    data: { name: string; value: number }[],
+    judul: string,
+    palet: string[],
+  ): string => {
+    const W = 520, H = 320;
+    const canvas = document.createElement('canvas');
+    canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext('2d')!;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.fillStyle = '#1E293B';
+    ctx.font = 'bold 18px Arial';
+    ctx.textAlign = 'left';
+    ctx.fillText(judul, 16, 28);
+
+    const padL = 40, padB = 70, padT = 50;
+    const chartW = W - padL - 20;
+    const chartH = H - padT - padB;
+    const maxVal = Math.max(...data.map(d => d.value), 1);
+    const n = data.length || 1;
+    const barW = Math.min(50, (chartW / n) * 0.6);
+    const gap = chartW / n;
+
+    // Sumbu
+    ctx.strokeStyle = '#CBD5E1';
+    ctx.beginPath();
+    ctx.moveTo(padL, padT);
+    ctx.lineTo(padL, padT + chartH);
+    ctx.lineTo(padL + chartW, padT + chartH);
+    ctx.stroke();
+
+    data.forEach((d, i) => {
+      const x = padL + gap * i + (gap - barW) / 2;
+      const h = (d.value / maxVal) * chartH;
+      const y = padT + chartH - h;
+      ctx.fillStyle = palet[i % palet.length];
+      ctx.fillRect(x, y, barW, h);
+
+      // Nilai di atas bar
+      ctx.fillStyle = '#1E293B';
+      ctx.font = 'bold 12px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText(String(d.value), x + barW / 2, y - 5);
+
+      // Label di bawah (dipotong kalau panjang)
+      ctx.fillStyle = '#64748B';
+      ctx.font = '10px Arial';
+      const label = d.name.length > 12 ? d.name.slice(0, 11) + '…' : d.name;
+      ctx.save();
+      ctx.translate(x + barW / 2, padT + chartH + 8);
+      ctx.rotate(-Math.PI / 4);
+      ctx.textAlign = 'right';
+      ctx.fillText(label, 0, 0);
+      ctx.restore();
+    });
+
+    return canvas.toDataURL('image/png');
+  };
+
+  const handleExportPDF = () => {
+    if (filtered.length === 0) {
+      message.warning('Tidak ada data untuk dibuat laporan');
+      return;
+    }
+
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const pageW = doc.internal.pageSize.getWidth();
+    const margin = 14;
+    let y = 16;
+
+    // Header
+    doc.setFontSize(18);
+    doc.setTextColor(31, 78, 121);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Laporan Leads & Sales', margin, y);
+    y += 7;
+    doc.setFontSize(10);
+    doc.setTextColor(100, 116, 139);
+    doc.setFont('helvetica', 'normal');
+    const periodeLabel = PERIODE_OPTIONS.find(p => p.value === periode)?.label ?? periode;
+    doc.text(`Periode: ${periodeLabel}  |  Dibuat: ${dayjs().format('DD MMM YYYY HH:mm')}`, margin, y);
+    y += 8;
+
+    // KPI ringkas
+    doc.setDrawColor(226, 232, 240);
+    doc.setFillColor(248, 250, 252);
+    doc.roundedRect(margin, y, pageW - margin * 2, 16, 2, 2, 'F');
+    doc.setFontSize(10);
+    doc.setTextColor(30, 41, 59);
+    const kpiText = `Total Leads: ${total}     Closing: ${closing}     Drop: ${drop}     Conversion: ${convRate}%`;
+    doc.text(kpiText, margin + 4, y + 10);
+    y += 24;
+
+    const PAL = ['#1F4E79', '#C9A66B', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#3B82F6', '#94A3B8'];
+    const imgW = pageW - margin * 2;
+    const imgH = imgW * (320 / 520);
+
+    const tambahGambar = (dataUrl: string) => {
+      if (y + imgH > doc.internal.pageSize.getHeight() - 12) {
+        doc.addPage();
+        y = 16;
+      }
+      doc.addImage(dataUrl, 'PNG', margin, y, imgW, imgH);
+      y += imgH + 6;
+    };
+
+    // Chart-chart
+    if (statusChartData.length) {
+      tambahGambar(buatPieChart(statusChartData, 'Distribusi Status', PAL));
+    }
+    if (sourceChartData.length) {
+      tambahGambar(buatBarChart(sourceChartData, 'Lead by Source', PAL));
+    }
+    if (salesChartData.length) {
+      tambahGambar(buatBarChart(salesChartData, 'Lead per Sales', PAL));
+    }
+    if (dropChartData.length) {
+      tambahGambar(buatPieChart(dropChartData, 'Drop by Reason', PAL));
+    }
+
+    // Tabel rekap By Source
+    if (sourceRekap.length) {
+      doc.addPage(); y = 16;
+      doc.setFontSize(13); doc.setTextColor(31, 78, 121); doc.setFont('helvetica', 'bold');
+      doc.text('Rekap By Source', margin, y); y += 4;
+      autoTable(doc, {
+        startY: y + 2,
+        head: [['Sumber', 'Jumlah', 'Persentase']],
+        body: sourceRekap.map(r => [r['Sumber'], String(r['Jumlah']), r['Persentase']]),
+        headStyles: { fillColor: [31, 78, 121] },
+        styles: { fontSize: 9 },
+        margin: { left: margin, right: margin },
+      });
+      y = (doc as any).lastAutoTable.finalY + 8;
+    }
+
+    // Tabel rekap By Sales
+    if (salesRekap.length) {
+      if (y > doc.internal.pageSize.getHeight() - 40) { doc.addPage(); y = 16; }
+      doc.setFontSize(13); doc.setTextColor(31, 78, 121); doc.setFont('helvetica', 'bold');
+      doc.text('Rekap By Sales', margin, y); y += 4;
+      autoTable(doc, {
+        startY: y + 2,
+        head: [['Sales', 'Jumlah', 'Persentase']],
+        body: salesRekap.map(r => [r['Sales'], String(r['Jumlah']), r['Persentase']]),
+        headStyles: { fillColor: [31, 78, 121] },
+        styles: { fontSize: 9 },
+        margin: { left: margin, right: margin },
+      });
+      y = (doc as any).lastAutoTable.finalY + 8;
+    }
+
+    // Tabel rekap Drop by Reason
+    if (dropRekap.length) {
+      if (y > doc.internal.pageSize.getHeight() - 40) { doc.addPage(); y = 16; }
+      doc.setFontSize(13); doc.setTextColor(31, 78, 121); doc.setFont('helvetica', 'bold');
+      doc.text('Rekap Drop by Reason', margin, y); y += 4;
+      autoTable(doc, {
+        startY: y + 2,
+        head: [['Alasan Drop', 'Jumlah', 'Persentase']],
+        body: dropRekap.map(r => [r['Alasan Drop'], String(r['Jumlah']), r['Persentase']]),
+        headStyles: { fillColor: [148, 163, 184] },
+        styles: { fontSize: 9 },
+        margin: { left: margin, right: margin },
+      });
+    }
+
+    doc.save(`laporan-leads-${dayjs().format('YYYY-MM-DD')}.pdf`);
+  };
+
   const handleExport = () => {
     if (exportPilihan.length === 0) {
       message.warning('Pilih minimal satu data untuk di-export');
@@ -280,13 +504,22 @@ export default function PerformaContent() {
     <div>
       <Row justify="end" align="middle" style={{ marginBottom: 16 }}>
         <Col>
-          <Button
-            icon={<DownloadOutlined />}
-            onClick={() => setExportModal(true)}
-            style={{ background: '#1F4E79', color: '#fff', fontWeight: 600 }}
-          >
-            Export Excel
-          </Button>
+          <Space>
+            <Button
+              icon={<DownloadOutlined />}
+              onClick={handleExportPDF}
+              style={{ background: '#C9A66B', color: '#fff', fontWeight: 600, borderColor: '#C9A66B' }}
+            >
+              Export PDF
+            </Button>
+            <Button
+              icon={<DownloadOutlined />}
+              onClick={() => setExportModal(true)}
+              style={{ background: '#1F4E79', color: '#fff', fontWeight: 600 }}
+            >
+              Export Excel
+            </Button>
+          </Space>
         </Col>
       </Row>
 
