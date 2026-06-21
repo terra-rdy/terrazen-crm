@@ -4,6 +4,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import {
   Row, Col, Card, Statistic, Tag, Select,
   Space, Typography, Skeleton, Button, DatePicker, Empty,
+  Modal, Checkbox, message,
 } from 'antd';
 import {
   TeamOutlined, DollarOutlined,
@@ -79,6 +80,10 @@ export default function PerformaContent() {
   const [periode, setPeriode]       = useState<string>('month');
   const [customRange, setCustom]    = useState<[Dayjs, Dayjs] | null>(null);
   const [salesNames, setSalesNames] = useState<Record<string, string>>({});
+
+  // State popup export
+  const [exportModalOpen, setExportModal] = useState(false);
+  const [exportPilihan, setExportPilihan] = useState<string[]>(['mentah', 'source', 'sales', 'drop']);
 
   useEffect(() => {
     getDocs(collection(db, 'leads'))
@@ -170,47 +175,105 @@ export default function PerformaContent() {
     .map(([name, value]) => ({ name, value }))
     .sort((a, b) => b.value - a.value);
 
-  const handleExport = () => {
-    const data = filtered.map(l => {
-      const followUpText = (l.followUpHistory ?? [])
-        .map(f => `[${f.lastUpdate ? dayjs(f.lastUpdate).format('DD/MM/YY HH:mm') : '—'}] ${f.status}${f.dropReason ? ` (${f.dropReason})` : ''}: ${f.notes || '-'}`)
-        .join(' | ');
+  // Rekap By Source (sumber) — jumlah + persen
+  const totalForPct = filtered.length || 1;
+  const sourceRekap = sourceChartData.map(d => ({
+    'Sumber': d.name,
+    'Jumlah': d.value,
+    'Persentase': `${((d.value / totalForPct) * 100).toFixed(2)}%`,
+  }));
 
-      return {
-        'Nama'            : l.nama ?? '—',
-        'No. HP'          : l.hp ?? '—',
-        'Project'         : l.project ?? '—',
-        'Sumber'          : l.sumber ?? '—',
-        'Status'          : l.status ?? '—',
-        'Alasan Drop'     : l.dropReason ?? '—',
-        'Sales'           : salesNames[l.assignedTo ?? ''] ?? l.assignedTo ?? '—',
-        'Next Follow Up'  : l.nextFollowUp ?? '—',
-        'Catatan'         : l.catatan ?? '—',
-        'Riwayat Follow Up': followUpText || '—',
-        'Tanggal Masuk'   : l.createdAt?.seconds
-          ? new Date(l.createdAt.seconds * 1000).toLocaleDateString('id-ID')
-          : '—',
-      };
-    });
+  // Rekap By Sales — jumlah + persen
+  const salesRekap = salesChartData.map(d => ({
+    'Sales': d.name,
+    'Jumlah': d.value,
+    'Persentase': `${((d.value / totalForPct) * 100).toFixed(2)}%`,
+  }));
 
-    const ws = XLSX.utils.json_to_sheet(data);
+  // Rekap Drop by Reason — jumlah + persen (basis: total lead drop)
+  const totalDropForPct = dropLeads.length || 1;
+  const dropRekap = dropChartData.map(d => ({
+    'Alasan Drop': d.name,
+    'Jumlah': d.value,
+    'Persentase': `${((d.value / totalDropForPct) * 100).toFixed(2)}%`,
+  }));
 
-    const colWidths = Object.keys(data[0] ?? {}).map(key => ({
-      wch: Math.max(key.length, ...data.map(row => String((row as any)[key] ?? '').length).slice(0, 10))
+  // Tambah autofilter pada sheet (panah dropdown di header)
+  const tambahAutofilter = (ws: XLSX.WorkSheet) => {
+    if (ws['!ref']) ws['!autofilter'] = { ref: ws['!ref'] };
+  };
+
+  // Atur lebar kolom otomatis
+  const aturLebar = (ws: XLSX.WorkSheet, rows: any[]) => {
+    if (!rows.length) return;
+    ws['!cols'] = Object.keys(rows[0]).map(key => ({
+      wch: Math.max(key.length, ...rows.map(r => String((r as any)[key] ?? '').length).slice(0, 20)) + 2,
     }));
-    ws['!cols'] = colWidths;
+  };
+
+  const handleExport = () => {
+    if (exportPilihan.length === 0) {
+      message.warning('Pilih minimal satu data untuk di-export');
+      return;
+    }
 
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Leads');
 
-    if (dropChartData.length > 0) {
-      const dropData = dropChartData.map(d => ({ 'Alasan Drop': d.name, 'Jumlah': d.value }));
-      const wsDrop = XLSX.utils.json_to_sheet(dropData);
-      XLSX.utils.book_append_sheet(wb, wsDrop, 'Alasan Drop');
+    // Sheet Data Mentah
+    if (exportPilihan.includes('mentah')) {
+      const data = filtered.map(l => {
+        const followUpText = (l.followUpHistory ?? [])
+          .map(f => `[${f.lastUpdate ? dayjs(f.lastUpdate).format('DD/MM/YY HH:mm') : '—'}] ${f.status}${f.dropReason ? ` (${f.dropReason})` : ''}: ${f.notes || '-'}`)
+          .join(' | ');
+        return {
+          'Nama'            : l.nama ?? '—',
+          'No. HP'          : l.hp ?? '—',
+          'Project'         : l.project ?? '—',
+          'Sumber'          : l.sumber ?? '—',
+          'Status'          : l.status ?? '—',
+          'Alasan Drop'     : l.dropReason ?? '—',
+          'Sales'           : salesNames[l.assignedTo ?? ''] ?? l.assignedTo ?? '—',
+          'Next Follow Up'  : l.nextFollowUp ?? '—',
+          'Catatan'         : l.catatan ?? '—',
+          'Riwayat Follow Up': followUpText || '—',
+          'Tanggal Masuk'   : l.createdAt?.seconds
+            ? new Date(l.createdAt.seconds * 1000).toLocaleDateString('id-ID')
+            : '—',
+        };
+      });
+      const ws = XLSX.utils.json_to_sheet(data.length ? data : [{ 'Info': 'Tidak ada data' }]);
+      aturLebar(ws, data);
+      tambahAutofilter(ws);
+      XLSX.utils.book_append_sheet(wb, ws, 'Data Mentah');
+    }
+
+    // Sheet By Source
+    if (exportPilihan.includes('source')) {
+      const ws = XLSX.utils.json_to_sheet(sourceRekap.length ? sourceRekap : [{ 'Info': 'Tidak ada data' }]);
+      aturLebar(ws, sourceRekap);
+      tambahAutofilter(ws);
+      XLSX.utils.book_append_sheet(wb, ws, 'By Source');
+    }
+
+    // Sheet By Sales
+    if (exportPilihan.includes('sales')) {
+      const ws = XLSX.utils.json_to_sheet(salesRekap.length ? salesRekap : [{ 'Info': 'Tidak ada data' }]);
+      aturLebar(ws, salesRekap);
+      tambahAutofilter(ws);
+      XLSX.utils.book_append_sheet(wb, ws, 'By Sales');
+    }
+
+    // Sheet Drop by Reason
+    if (exportPilihan.includes('drop')) {
+      const ws = XLSX.utils.json_to_sheet(dropRekap.length ? dropRekap : [{ 'Info': 'Belum ada lead drop' }]);
+      aturLebar(ws, dropRekap);
+      tambahAutofilter(ws);
+      XLSX.utils.book_append_sheet(wb, ws, 'Drop by Reason');
     }
 
     const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
     saveAs(new Blob([buf], { type: 'application/octet-stream' }), `laporan-leads-${dayjs().format('YYYY-MM-DD')}.xlsx`);
+    setExportModal(false);
   };
 
   return (
@@ -219,13 +282,49 @@ export default function PerformaContent() {
         <Col>
           <Button
             icon={<DownloadOutlined />}
-            onClick={handleExport}
+            onClick={() => setExportModal(true)}
             style={{ background: '#1F4E79', color: '#fff', fontWeight: 600 }}
           >
             Export Excel
           </Button>
         </Col>
       </Row>
+
+      {/* Popup pilih data yang mau di-export */}
+      <Modal
+        title={<Space><DownloadOutlined style={{ color: '#1F4E79' }} />Export Excel — Pilih Data</Space>}
+        open={exportModalOpen}
+        onOk={handleExport}
+        onCancel={() => setExportModal(false)}
+        okText="Export"
+        cancelText="Batal"
+        okButtonProps={{ style: { background: '#1F4E79', borderColor: '#1F4E79' } }}
+      >
+        <div style={{ marginBottom: 12 }}>
+          <Checkbox
+            checked={exportPilihan.length === 4}
+            indeterminate={exportPilihan.length > 0 && exportPilihan.length < 4}
+            onChange={e => setExportPilihan(e.target.checked ? ['mentah', 'source', 'sales', 'drop'] : [])}
+          >
+            <Text strong>Pilih Semua</Text>
+          </Checkbox>
+        </div>
+        <Checkbox.Group
+          value={exportPilihan}
+          onChange={(vals) => setExportPilihan(vals as string[])}
+          style={{ display: 'flex', flexDirection: 'column', gap: 10 }}
+        >
+          <Checkbox value="mentah">Data Mentah (semua lead per baris)</Checkbox>
+          <Checkbox value="source">Rekap By Source (sumber + jumlah + %)</Checkbox>
+          <Checkbox value="sales">Rekap By Sales (sales + jumlah + %)</Checkbox>
+          <Checkbox value="drop">Rekap Drop by Reason (alasan + jumlah + %)</Checkbox>
+        </Checkbox.Group>
+        <div style={{ marginTop: 16, padding: '8px 12px', background: '#F8FAFC', borderRadius: 6 }}>
+          <Text type="secondary" style={{ fontSize: 12 }}>
+            Data mengikuti filter yang sedang aktif. Tiap sheet sudah dilengkapi autofilter (panah di header).
+          </Text>
+        </div>
+      </Modal>
 
       <Card style={{ marginBottom: 16 }} styles={{ body: { padding: '12px 16px' } }}>
         <Row gutter={[12, 12]}>
