@@ -12,8 +12,7 @@ import {
   EyeOutlined, LockOutlined, AppstoreOutlined,
 } from '@ant-design/icons';
 import {
-  collection, getDocs, updateDoc,
-  doc, serverTimestamp, setDoc,
+  collection, getDocs, updateDoc, doc,
 } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import type { ColumnsType } from 'antd/es/table';
@@ -112,9 +111,16 @@ export default function KelolaSalesContent() {
         });
         message.success('Data sales diperbarui');
       } else {
+        const currentUser = auth.currentUser;
+        if (!currentUser) throw new Error('Tidak ada session admin');
+        const idToken = await currentUser.getIdToken();
+
         const res = await fetch('/api/create-user', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${idToken}`,
+          },
           body: JSON.stringify({
             email: values.email,
             password: values.password,
@@ -125,16 +131,8 @@ export default function KelolaSalesContent() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error ?? 'Gagal membuat akun');
 
-        await setDoc(doc(db, 'users', data.uid), {
-          uid: data.uid,
-          nama: values.nama,
-          email: values.email,
-          role: values.role ?? 'sales',
-          aktif: true,
-          password: values.password,
-          projectIds: [],
-          createdAt: serverTimestamp(),
-        });
+        // Route /api/create-user sudah menyimpan ke Firestore.
+        // Tidak perlu setDoc lagi di sini supaya tidak dobel.
         message.success('Sales baru berhasil ditambahkan');
       }
       setModal(false);

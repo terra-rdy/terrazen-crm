@@ -18,17 +18,17 @@ export async function POST(req: NextRequest) {
       .collection("users")
       .where("email", "==", decodedToken.email?.toLowerCase())
       .get();
-
     if (usersSnap.empty || usersSnap.docs[0].data().role !== "admin") {
       return NextResponse.json({ error: "Forbidden: bukan admin" }, { status: 403 });
     }
 
     // Ambil data dari request
     const body = await req.json();
-    const { nama, email, hp, projectId, password } = body;
+    const { nama, email, password, role, hp, projectId } = body;
 
-    if (!nama || !email || !hp || !projectId || !password) {
-      return NextResponse.json({ error: "Semua field wajib diisi" }, { status: 400 });
+    // Hanya nama, email, password yang wajib (sesuai form Tambah Sales)
+    if (!nama || !email || !password) {
+      return NextResponse.json({ error: "Nama, email, dan password wajib diisi" }, { status: 400 });
     }
     if (password.length < 6) {
       return NextResponse.json({ error: "Password minimal 6 karakter" }, { status: 400 });
@@ -40,20 +40,24 @@ export async function POST(req: NextRequest) {
       password,
       displayName: nama.trim(),
     });
-
     const uid = userRecord.uid;
 
     // Simpan ke Firestore dengan doc ID = UID
-    await adminDb.collection("users").doc(uid).set({
+    const dataUser: any = {
       uid,
       nama: nama.trim(),
       email: email.toLowerCase().trim(),
-      hp: hp.trim(),
-      projectId,
-      role: "sales",
+      role: role ?? "sales",
       aktif: true,
+      password,
+      projectIds: [],
       createdAt: new Date().toISOString(),
-    });
+    };
+    // Field opsional, hanya disimpan kalau ada
+    if (hp) dataUser.hp = hp.trim();
+    if (projectId) dataUser.projectId = projectId;
+
+    await adminDb.collection("users").doc(uid).set(dataUser);
 
     return NextResponse.json({
       success: true,
