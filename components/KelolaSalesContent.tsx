@@ -211,9 +211,21 @@ export default function KelolaSalesContent() {
           <Avatar size={36} style={{ background: '#1F4E79', flexShrink: 0 }}>
             {r.nama?.[0]?.toUpperCase()}
           </Avatar>
-          <div>
-            <Text style={{ fontWeight: 500, display: 'block' }}>{r.nama}</Text>
-            <Text type="secondary" style={{ fontSize: 12 }}>{r.email}</Text>
+          <div style={{ minWidth: 0 }}>
+            <Text style={{ fontWeight: 500, display: 'block', whiteSpace: 'nowrap' }}>{r.nama}</Text>
+            <Text
+              type="secondary"
+              style={{
+                fontSize: 12,
+                display: 'block',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                maxWidth: 160,
+              }}
+            >
+              {r.email}
+            </Text>
           </div>
         </Space>
       ),
@@ -306,6 +318,7 @@ export default function KelolaSalesContent() {
           loading={loading}
           pagination={{ pageSize: 10, showSizeChanger: false }}
           size="middle"
+          scroll={{ x: 'max-content' }}
         />
       </Card>
 
