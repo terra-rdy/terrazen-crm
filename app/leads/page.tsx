@@ -564,6 +564,21 @@ export default function LeadsPage() {
                 })
               )
             );
+          } else if (distribusiType === 'assigned') {
+            // Kirim email HANYA saat admin assign ke sales LAIN (bukan ke diri sendiri)
+            const targetSales = values.assignedTo;
+            if (currentRole === 'admin' && targetSales && targetSales !== currentUid) {
+              await fetch('/api/send-notification', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  title: '🎯 Lead Baru Hanya Untuk Anda!',
+                  body: `${values.nama} - ${values.project ?? ''}`,
+                  targetUid: targetSales,
+                  data: { type: 'new_lead_distribution', leadId: docRef.id },
+                }),
+              });
+            }
           }
         } catch (notifErr) { console.error('Notifikasi gagal:', notifErr); }
       }
