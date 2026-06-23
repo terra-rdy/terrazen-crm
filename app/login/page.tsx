@@ -116,7 +116,7 @@ export default function LoginPage() {
         boxShadow: "0 2px 16px rgba(0,0,0,0.1)",
         width: 360,
       }}>
-        <h2 style={{ margin: "0 0 8px", textAlign: "center" }}>Terrazen CRM</h2>
+        <h2 style={{ margin: "0 0 8px", textAlign: "center" }}>SalesHub</h2>
         <p style={{ margin: "0 0 24px", textAlign: "center", color: "#888", fontSize: 14 }}>
           Masuk ke akun Anda
         </p>
