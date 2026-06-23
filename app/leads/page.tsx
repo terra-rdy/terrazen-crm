@@ -659,8 +659,15 @@ export default function LeadsPage() {
     window.open(url, '_blank');
   };
 
-  // Lead yang masih berjalan / belum diterima (untuk monitoring admin)
-  const leadsOnProgress = leads.filter(l => l.distributionStatus === 'pending');
+  // Lead yang masih berjalan / belum diterima (untuk monitoring admin):
+  // distributionStatus 'pending' ATAU belum punya sales (assignedTo & takenBy kosong),
+  // tapi yang sudah drop/closing dikecualikan.
+  const leadsOnProgress = leads.filter(l => {
+    const statusLower = (l.status ?? '').toLowerCase();
+    if (statusLower === 'drop' || statusLower === 'closing') return false;
+    const belumPunyaSales = !l.assignedTo && !l.takenBy;
+    return l.distributionStatus === 'pending' || belumPunyaSales;
+  });
 
   const getFollowUpTag = (date?: string) => {
     if (!date) return <Text type="secondary">—</Text>;
