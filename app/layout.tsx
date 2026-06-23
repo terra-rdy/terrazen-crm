@@ -3,30 +3,26 @@ import { Inter } from 'next/font/google';
 import { AntdRegistry } from '@ant-design/nextjs-registry';
 import ConditionalLayout from '@/components/ConditionalLayout';
 import './globals.css';
-
 const inter = Inter({ subsets: ['latin'] });
-
 export const metadata: Metadata = {
-  title: 'Terrazen CRM',
+  title: 'SalesHub',
   description: 'CRM untuk tim marketing properti',
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'Terrazen CRM',
+    title: 'SalesHub',
   },
   formatDetection: {
     telephone: false,
   },
 };
-
 export const viewport: Viewport = {
   themeColor: '#1F4E79',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
 };
-
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="id">
@@ -34,7 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="apple-touch-icon" href="/icon-192.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="Terrazen CRM" />
+        <meta name="apple-mobile-web-app-title" content="SalesHub" />
       </head>
       <body className={inter.className}>
         <AntdRegistry>
