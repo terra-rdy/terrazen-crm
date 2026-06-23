@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.terra_rdy.pspterra",
+      "sha256_cert_fingerprints": [
+        "9B:F6:03:B6:86:72:E3:B9:BE:1A:DA:61:6F:A9:03:15:9D:48:39:2F:2E:A8:45:EF:A1:DE:26:B2:13:70:A8:98"
+      ]
+    }
+  }
+]
