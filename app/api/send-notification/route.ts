@@ -42,13 +42,12 @@ export async function POST(req: NextRequest) {
             <a href="${acceptUrl}" style="background:#16a34a;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold;margin-right:12px;display:inline-block;">Terima</a>
             <a href="${rejectUrl}" style="background:#dc2626;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold;display:inline-block;">Tolak</a>
           </p>
-          <p style="color:#888; font-size: 12px; margin-top: 24px;">(Mode testing: email dikirim ke alamat testing, bukan ke sales sebenarnya. Target asli uid: ${targetUid})</p>
         </div>
       `;
     }
 
     const result = await resend.emails.send({
-      from: 'Terrazen CRM <onboarding@resend.dev>',
+      from: 'Saleshub <onboarding@resend.dev>',
       to: testingEmailRecipient,
       subject: title,
       html: htmlBody,
