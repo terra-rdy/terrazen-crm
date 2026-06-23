@@ -68,6 +68,7 @@ interface SalesUser {
   nama: string;
   email: string;
   role: string;
+  hp?: string;
   projectIds?: string[];
 }
 
@@ -153,6 +154,7 @@ export default function LeadsPage() {
   const [allLeads, setAllLeads]         = useState<Lead[]>([]);
   const [filtered, setFiltered]         = useState<Lead[]>([]);
   const [salesList, setSalesList]       = useState<SalesUser[]>([]);
+  const [nowTick, setNowTick]           = useState<number>(Date.now());
   const [projects, setProjects]         = useState<Project[]>([]);
   const [statuses, setStatuses]         = useState<StatusItem[]>([]);
   const [sources, setSources]           = useState<SourceItem[]>([]);
@@ -190,6 +192,12 @@ export default function LeadsPage() {
     const found = statuses.find(s => s.id === val || s.nama.toLowerCase() === val?.toLowerCase());
     return found?.nama ?? val ?? '—';
   };
+
+  // Live timer untuk monitoring (update tiap 30 detik)
+  useEffect(() => {
+    const t = setInterval(() => setNowTick(Date.now()), 30000);
+    return () => clearInterval(t);
+  }, []);
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (firebaseUser) => {
@@ -603,6 +611,56 @@ export default function LeadsPage() {
   };
 
   const getSalesName = (uid: string) => salesList.find(u => u.id === uid)?.nama ?? uid ?? '—';
+  const getSalesHP = (uid: string) => salesList.find(u => u.id === uid)?.hp ?? '';
+
+  // Hitung durasi sejak lead masuk (untuk monitoring)
+  const hitungDurasi = (createdAt: any): string => {
+    if (!createdAt?.seconds) return '—';
+    const masuk = createdAt.seconds * 1000;
+    const selisihMnt = Math.floor((nowTick - masuk) / 60000);
+    if (selisihMnt < 1) return 'Baru saja';
+    if (selisihMnt < 60) return `${selisihMnt} menit lalu`;
+    const jam = Math.floor(selisihMnt / 60);
+    const sisaMnt = selisihMnt % 60;
+    return `${jam} jam ${sisaMnt} menit lalu`;
+  };
+
+  // Sisa waktu giliran rolling (dari queueExpiredAt)
+  const sisaWaktuGiliran = (expiredAt: any): string => {
+    if (!expiredAt) return '';
+    const exp = expiredAt.seconds ? expiredAt.seconds * 1000 : new Date(expiredAt).getTime();
+    const sisaDetik = Math.floor((exp - nowTick) / 1000);
+    if (sisaDetik <= 0) return 'Habis';
+    const m = Math.floor(sisaDetik / 60);
+    const d = sisaDetik % 60;
+    return `${m}:${String(d).padStart(2, '0')}`;
+  };
+
+  // Buka WhatsApp untuk notifikasi lead (monitoring admin)
+  const waMonitoring = (lead: Lead) => {
+    let nomor = '';
+    let pesan = '';
+    if (lead.distributionType === 'rolling') {
+      const uidGiliran = lead.rollingQueue?.[lead.currentQueueIndex ?? 0] ?? '';
+      nomor = getSalesHP(uidGiliran);
+      pesan = `Halo ${getSalesName(uidGiliran)}, ada *Lead Baru* untuk Anda (giliran rolling):\n\nNama: ${lead.nama}\nProject: ${lead.project ?? '-'}\n\nMohon segera dicek & diterima di aplikasi ya. Terima kasih.`;
+    } else if (lead.distributionType === 'rebutan') {
+      // Tanpa nomor — admin pilih tujuan (grup / sales) sendiri di WA
+      pesan = `*Lead Rebutan Masuk!* ⚡\n\nNama: ${lead.nama}\nProject: ${lead.project ?? '-'}\n\nSiapa cepat dia dapat! Buka aplikasi untuk klaim.`;
+    } else {
+      const uid = lead.assignedTo ?? lead.takenBy ?? '';
+      nomor = getSalesHP(uid);
+      pesan = `Halo ${getSalesName(uid)}, ada *Lead Baru* ditugaskan untuk Anda:\n\nNama: ${lead.nama}\nProject: ${lead.project ?? '-'}\n\nMohon segera ditindaklanjuti. Terima kasih.`;
+    }
+    const teks = encodeURIComponent(pesan);
+    const url = nomor
+      ? `https://wa.me/${nomor.replace(/^0/, '62').replace(/[^0-9]/g, '')}?text=${teks}`
+      : `https://wa.me/?text=${teks}`;
+    window.open(url, '_blank');
+  };
+
+  // Lead yang masih berjalan / belum diterima (untuk monitoring admin)
+  const leadsOnProgress = leads.filter(l => l.distributionStatus === 'pending');
 
   const getFollowUpTag = (date?: string) => {
     if (!date) return <Text type="secondary">—</Text>;
@@ -754,6 +812,65 @@ export default function LeadsPage() {
           </Col>
         </Row>
       </Card>
+
+      {/* Card Monitoring Lead Berjalan — admin only */}
+      {currentRole === 'admin' && leadsOnProgress.length > 0 && (
+        <Card
+          style={{ marginBottom: 16, borderLeft: '4px solid #C9A66B' }}
+          styles={{ body: { padding: 16 } }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <Space>
+              <ClockCircleOutlined style={{ color: '#C9A66B', fontSize: 18 }} />
+              <Text strong style={{ fontSize: 15 }}>Lead Berjalan (Belum Diterima)</Text>
+              <Tag color="gold">{leadsOnProgress.length}</Tag>
+            </Space>
+            <Text type="secondary" style={{ fontSize: 11 }}>Live · update tiap 30 detik</Text>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {leadsOnProgress.map(l => {
+              const tipe = l.distributionType ?? 'assigned';
+              const tipeLabel = tipe === 'rolling' ? 'Rolling' : tipe === 'rebutan' ? 'Rebutan' : 'Assign';
+              const tipeColor = tipe === 'rolling' ? '#1F4E79' : tipe === 'rebutan' ? '#10B981' : '#8B5CF6';
+              const uidGiliran = tipe === 'rolling' ? (l.rollingQueue?.[l.currentQueueIndex ?? 0] ?? '') : '';
+              return (
+                <div
+                  key={l.id}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    gap: 8, padding: '8px 12px', background: '#FafafA',
+                    border: '1px solid #F0F0F0', borderRadius: 8, flexWrap: 'wrap',
+                  }}
+                >
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <Text strong style={{ whiteSpace: 'nowrap' }}>{l.nama}</Text>
+                      <Tag color={tipeColor} style={{ margin: 0 }}>{tipeLabel}</Tag>
+                      {l.project && <Text type="secondary" style={{ fontSize: 12 }}>{l.project}</Text>}
+                    </div>
+                    <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 2 }}>
+                      Masuk {hitungDurasi(l.createdAt)}
+                      {tipe === 'rolling' && uidGiliran && (
+                        <> · Giliran: <b>{getSalesName(uidGiliran)}</b>
+                          {l.queueExpiredAt && <> · sisa {sisaWaktuGiliran(l.queueExpiredAt)}</>}
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <Button
+                    size="small"
+                    icon={<WhatsAppOutlined />}
+                    onClick={() => waMonitoring(l)}
+                    style={{ background: '#25D366', color: '#fff', borderColor: '#25D366', flexShrink: 0 }}
+                  >
+                    {tipe === 'rebutan' ? 'WA Grup' : 'WA Sales'}
+                  </Button>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
 
       <Card styles={{ body: { padding: 0 } }}>
         <Table columns={columns} dataSource={filtered} rowKey="id" loading={loading}
