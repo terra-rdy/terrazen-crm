@@ -49,6 +49,9 @@ export default function KelolaSalesContent() {
   const [selectedUser, setSelected] = useState<SalesUser | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [resetting, setResetting]   = useState(false);
+  const [emailModal, setEmailModal] = useState(false);
+  const [savingEmail, setSavingEmail] = useState(false);
+  const [emailForm] = Form.useForm();
   const [form]                      = Form.useForm();
   const [projectForm]               = Form.useForm();
 
@@ -200,6 +203,40 @@ export default function KelolaSalesContent() {
     } finally { setResetting(false); }
   };
 
+  const openEditEmail = (u: SalesUser) => {
+    setSelected(u);
+    emailForm.setFieldsValue({ newEmail: u.email });
+    setEmailModal(true);
+  };
+
+  const handleSaveEmail = async () => {
+    try {
+      const values = await emailForm.validateFields();
+      setSavingEmail(true);
+      const currentUser = auth.currentUser;
+      if (!currentUser) throw new Error('Tidak ada session admin');
+      const idToken = await currentUser.getIdToken();
+
+      const res = await fetch('/api/update-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({ uid: selectedUser!.id, newEmail: values.newEmail }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'Gagal mengubah email');
+
+      message.success(`Email ${selectedUser!.nama} berhasil diubah`);
+      setEmailModal(false);
+      fetchUsers();
+    } catch (e: any) {
+      if (e?.errorFields) return;
+      message.error(e?.message ?? 'Gagal mengubah email');
+    } finally { setSavingEmail(false); }
+  };
+
   const columns: ColumnsType<SalesUser> = [
     {
       title: 'Sales',
@@ -263,7 +300,7 @@ export default function KelolaSalesContent() {
     {
       title: '',
       key: 'actions',
-      width: 140,
+      width: 180,
       render: (_: any, r: SalesUser) => (
         <Space size={4}>
           <Tooltip title="Detail & Password">
@@ -271,6 +308,9 @@ export default function KelolaSalesContent() {
           </Tooltip>
           <Tooltip title="Edit">
             <Button type="text" size="small" icon={<EditOutlined />} onClick={() => openEdit(r)} />
+          </Tooltip>
+          <Tooltip title="Ubah Email">
+            <Button type="text" size="small" icon={<MailOutlined />} onClick={() => openEditEmail(r)} style={{ color: '#10B981' }} />
           </Tooltip>
           <Tooltip title="Assign Project">
             <Button type="text" size="small" icon={<AppstoreOutlined />} onClick={() => openProjectAssign(r)} style={{ color: '#1F4E79' }} />
@@ -394,6 +434,35 @@ export default function KelolaSalesContent() {
               ))}
             </Select>
           </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Edit Email Modal */}
+      <Modal
+        title={<Space><MailOutlined style={{ color: '#10B981' }} /><span>Ubah Email — {selectedUser?.nama}</span></Space>}
+        open={emailModal}
+        onOk={handleSaveEmail}
+        onCancel={() => setEmailModal(false)}
+        confirmLoading={savingEmail}
+        okText="Simpan Email"
+        cancelText="Batal"
+        okButtonProps={{ style: { background: '#10B981', borderColor: '#10B981' } }}
+      >
+        <Form form={emailForm} layout="vertical" style={{ marginTop: 16 }}>
+          <Form.Item
+            name="newEmail"
+            label="Email Baru"
+            rules={[
+              { required: true, type: 'email', message: 'Masukkan email valid' },
+            ]}
+          >
+            <Input prefix={<MailOutlined />} placeholder="email@domain.com" />
+          </Form.Item>
+          <div style={{ padding: '8px 12px', background: '#F0FDF4', borderRadius: 6, border: '1px solid #BBF7D0' }}>
+            <Text type="secondary" style={{ fontSize: 12 }}>
+              Email diubah di sistem login & data sekaligus. Sales bisa langsung login dengan email baru memakai password yang sama.
+            </Text>
+          </div>
         </Form>
       </Modal>
 
