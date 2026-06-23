@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   Card, Table, Tag, Button, Input, Select, Space, Modal,
   Form, Row, Col, Typography, Tooltip, Popconfirm, message,
@@ -18,7 +18,7 @@ import {
 } from '@ant-design/icons';
 import {
   collection, getDocs, addDoc, updateDoc, deleteDoc,
-  doc, query, orderBy, serverTimestamp, where, getDoc,
+  doc, query, orderBy, serverTimestamp, where, getDoc, onSnapshot,
 } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import type { ColumnsType } from 'antd/es/table';
@@ -155,6 +155,7 @@ export default function LeadsPage() {
   const [filtered, setFiltered]         = useState<Lead[]>([]);
   const [salesList, setSalesList]       = useState<SalesUser[]>([]);
   const [nowTick, setNowTick]           = useState<number>(Date.now());
+  const leadsUnsubRef = useRef<null | (() => void)>(null);
   const [projects, setProjects]         = useState<Project[]>([]);
   const [statuses, setStatuses]         = useState<StatusItem[]>([]);
   const [sources, setSources]           = useState<SourceItem[]>([]);
@@ -247,7 +248,14 @@ export default function LeadsPage() {
       setAllLeads(allSnap.docs.map(d => ({ id: d.id, ...d.data() })) as Lead[]);
     });
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      // Bersihkan listener leads real-time saat keluar halaman
+      if (leadsUnsubRef.current) {
+        leadsUnsubRef.current();
+        leadsUnsubRef.current = null;
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -287,22 +295,37 @@ export default function LeadsPage() {
 
   const fetchLeads = async (role: string, uid: string) => {
     setLoading(true);
-    try {
-      let q;
-      if (role === 'admin') {
-        q = query(collection(db, 'leads'), orderBy('createdAt', 'desc'));
-      } else {
-        q = query(collection(db, 'leads'), where('assignedTo', '==', uid), orderBy('createdAt', 'desc'));
-      }
-      const snap = await getDocs(q);
-      setLeads(snap.docs.map(d => ({ id: d.id, ...d.data() })) as Lead[]);
-    } catch {
-      const snap = await getDocs(collection(db, 'leads'));
-      const all = snap.docs.map(d => ({ id: d.id, ...d.data() })) as Lead[];
-      setLeads(role === 'admin' ? all : all.filter(l => l.assignedTo === uid));
-    } finally {
-      setLoading(false);
+    // Bersihkan listener lama kalau ada (hindari listener ganda)
+    if (leadsUnsubRef.current) {
+      leadsUnsubRef.current();
+      leadsUnsubRef.current = null;
     }
+    let q;
+    if (role === 'admin') {
+      q = query(collection(db, 'leads'), orderBy('createdAt', 'desc'));
+    } else {
+      q = query(collection(db, 'leads'), where('assignedTo', '==', uid), orderBy('createdAt', 'desc'));
+    }
+    // Pasang listener real-time: halaman update otomatis tiap ada perubahan
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        setLeads(snap.docs.map(d => ({ id: d.id, ...d.data() })) as Lead[]);
+        setLoading(false);
+      },
+      async (err) => {
+        console.error('Snapshot leads error, fallback ke getDocs:', err);
+        // Fallback: kalau listener gagal (mis. index belum ada), ambil sekali
+        try {
+          const snapAll = await getDocs(collection(db, 'leads'));
+          const all = snapAll.docs.map(d => ({ id: d.id, ...d.data() })) as Lead[];
+          setLeads(role === 'admin' ? all : all.filter(l => l.assignedTo === uid));
+        } finally {
+          setLoading(false);
+        }
+      }
+    );
+    leadsUnsubRef.current = unsub;
   };
 
   // Stat counts
