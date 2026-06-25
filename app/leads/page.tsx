@@ -575,6 +575,7 @@ export default function LeadsPage() {
                   title: '🏠 Lead Baru Untuk Anda!',
                   body: `${values.nama} - ${values.project ?? ''}`,
                   targetUid: firstUid,
+                  projectName: values.project ?? '',
                   data: { type: 'new_lead_distribution', leadId: docRef.id },
                 }),
               });
@@ -590,6 +591,7 @@ export default function LeadsPage() {
                     title: '⚡ Lead Rebutan Masuk!',
                     body: `${values.nama} - ${values.project ?? ''}`,
                     targetUid: uid,
+                    projectName: values.project ?? '',
                     data: { type: 'new_lead_distribution', leadId: docRef.id },
                   }),
                 })
@@ -606,6 +608,7 @@ export default function LeadsPage() {
                   title: '🎯 Lead Baru Hanya Untuk Anda!',
                   body: `${values.nama} - ${values.project ?? ''}`,
                   targetUid: targetSales,
+                  projectName: values.project ?? '',
                   data: { type: 'new_lead_distribution', leadId: docRef.id },
                 }),
               });
