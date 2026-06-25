@@ -215,12 +215,8 @@ export default function LeadsPage() {
 
       const projectSnap = await getDocs(collection(db, 'projects'));
       const allProjects = projectSnap.docs.map(d => ({ id: d.id, ...d.data() })) as Project[];
-      if (me?.role === 'admin') {
-        setProjects(allProjects.filter(p => p.aktif));
-      } else {
-        const myProjectIds: string[] = me?.projectIds ?? [];
-        setProjects(allProjects.filter(p => p.aktif && myProjectIds.includes(p.id)));
-      }
+      // Semua role (admin & sales) bisa memilih semua project yang aktif
+      setProjects(allProjects.filter(p => p.aktif));
 
       const statusSnap = await getDocs(query(collection(db, 'statuses'), orderBy('urutan')));
       setStatuses(statusSnap.docs.map(d => ({ id: d.id, ...d.data() })) as StatusItem[]);
