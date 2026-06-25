@@ -489,7 +489,16 @@ export default function LeadsPage() {
     setDuplicate(null);
     if (hp.length >= 10) {
       const dup = checkDuplicate(hp, editingLead?.id);
-      if (dup) setDuplicate({ lead: dup, salesNama: getSalesName(dup.assignedTo ?? '') });
+      if (dup) {
+        const pemilikUid = dup.assignedTo ?? '';
+        setDuplicate({ lead: dup, salesNama: getSalesName(pemilikUid) });
+        // Auto-assign ke sales pemilik nomor (hanya admin, dan hanya jika sales pemiliknya jelas).
+        // Admin tetap bisa mengubah mode/sales secara manual setelah ini.
+        if (currentRole === 'admin' && pemilikUid) {
+          setDistType('assigned');
+          form.setFieldsValue({ assignedTo: pemilikUid });
+        }
+      }
     }
   };
 
@@ -1027,6 +1036,9 @@ export default function LeadsPage() {
           {duplicateInfo && (
             <Alert type="warning" showIcon style={{ marginBottom: 16, marginTop: -8 }}
               message={<div>Nomor ini sudah dimiliki oleh Sales: <strong>{duplicateInfo.salesNama}</strong></div>}
+              description={currentRole === 'admin' && duplicateInfo.lead.assignedTo
+                ? 'Distribusi otomatis diatur ke Assign untuk sales tersebut. Anda masih bisa mengubahnya secara manual di bawah.'
+                : undefined}
             />
           )}
 
